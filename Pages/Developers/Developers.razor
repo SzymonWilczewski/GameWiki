@@ -1,0 +1,172 @@
+﻿@page "/developers"
+@inject IDeveloperService DeveloperService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Developers</PageTitle>
+
+<div class="row align-items-center mb-3">
+    <div class="col">
+        <h1>Developers</h1>
+    </div>
+    <div class="col">
+        <InputText @bind-Value="searchTerm" @oninput="UpdateSearch" class="form-control" placeholder="Search..." />
+    </div>
+    <div class="col">
+        <AuthorizeView Roles="Admin, User">
+            <button type="submit" class="btn btn-primary float-end" @onclick='() => NavigationManager.NavigateTo("/developers/add")'>New developer</button>
+        </AuthorizeView>
+    </div>
+</div>
+
+@if (developers is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-striped table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>
+                    <a href="" @onclick="SortByName" @onclick:preventDefault class="text-decoration-none text-white">@nameButton</a>
+                </th>
+                <th>
+                    <a href="" @onclick="SortByCity" @onclick:preventDefault class="text-decoration-none text-white">@cityButton</a>
+                </th>
+                <th>
+                    <a href="" @onclick="SortByCountry" @onclick:preventDefault class="text-decoration-none text-white">@countryButton</a>
+                </th>
+                <AuthorizeView Roles="Admin, User">
+                    <th />
+                </AuthorizeView>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var developer in FilteredDevelopers)
+            {
+                <tr>
+                    <td>@developer.Name</td>
+                    <td>@developer.City</td>
+                    <td>@developer.Country</td>
+                    <AuthorizeView Roles="Admin">
+                        <td class="text-center" style="width: 110px;">
+                            <button class="btn btn-primary" @onclick='() => NavigationManager.NavigateTo($"/developers/edit/{developer.Id}")'>
+                                <i class="oi oi-pencil" />
+                            </button>
+                            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modal" @onclick='() => OpenModal(developer)'>
+                                <i class="oi oi-x" />
+                            </button>
+                        </td>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="User">
+                        <td class="text-center" style="width: 55px;">
+                            <button class="btn btn-primary" @onclick='() => NavigationManager.NavigateTo($"/developers/edit/{developer.Id}")'>
+                                <i class="oi oi-pencil" />
+                            </button>
+                        </td>
+                    </AuthorizeView>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <Modal Message="@message" OnClose="@OnModalClose"/>
+}
+
+@code {
+    // Init
+    private List<Developer>? developers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        developers = await DeveloperService.GetDevelopers();
+    }
+
+    // Modal
+    private Developer? currentDeveloper;
+    private string? message;
+
+    private void OpenModal(Developer developer)
+    {
+        currentDeveloper = developer;
+        message = $"Delete {developer.Name}?";
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed)
+        {
+            await DeveloperService.DeleteDeveloper(currentDeveloper.Id);
+            developers = await DeveloperService.GetDevelopers();
+        }
+    }
+
+    // Filter
+    private string searchTerm = "";
+
+    private void UpdateSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value.ToString();
+    }
+
+    private List<Developer>? FilteredDevelopers
+    {
+        get
+        {
+            var filtered = developers;
+
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                filtered = filtered
+                    .Where(d => d.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                d.City.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                d.Country.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            return filtered;
+        }
+    }
+
+    // Sort
+    private string nameButton = "Name ⮁";
+    private string cityButton = "City ⮁";
+    private string countryButton = "Country ⮁";
+    private bool sortByNameAscending = false;
+    private bool sortByCityAscending = false;
+    private bool sortByCountryAscending = false;
+
+    void ActiveButton(string button)
+    {
+        nameButton = button != "Name" ? "Name ⮁" : sortByNameAscending ? "Name ⭣" : "Name ⭡";
+        cityButton = button != "City" ? "City ⮁" : sortByCityAscending ? "City ⭣" : "City ⭡";
+        countryButton = button != "Country" ? "Country ⮁" : sortByCountryAscending ? "Country ⭣" : "Country ⭡";
+    }
+
+    private void SortByName()
+    {
+        sortByNameAscending = !sortByNameAscending;
+        ActiveButton("Name");
+        developers = sortByNameAscending
+                ? developers.OrderBy(d => d.Name).ToList()
+                : developers.OrderByDescending(d => d.Name).ToList();
+    }
+
+    private void SortByCity()
+    {
+        sortByCityAscending = !sortByCityAscending;
+        ActiveButton("City");
+        developers = sortByCityAscending
+                ? developers.OrderBy(d => d.City).ToList()
+                : developers.OrderByDescending(d => d.City).ToList();
+    }
+
+    private void SortByCountry()
+    {
+        sortByCountryAscending = !sortByCountryAscending;
+        ActiveButton("Country");
+        developers = sortByCountryAscending
+                ? developers.OrderBy(d => d.Country).ToList()
+                : developers.OrderByDescending(d => d.Country).ToList();
+    }
+}

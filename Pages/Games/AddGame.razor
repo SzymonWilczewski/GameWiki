@@ -1,0 +1,71 @@
+﻿@page "/games/add"
+@attribute [Authorize(Roles = "Admin, User")]
+@inject IGameService GameService
+@inject IDeveloperService DeveloperService
+@inject NavigationManager NavigationManager
+
+<h1>Add game</h1>
+
+<div class="row">
+    <div class="col-sm-4">
+        <EditForm Model="@game" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label for="Name">Name:</label>
+                <InputText id="Name" class="form-control" @bind-Value="game.Name" />
+                <ValidationMessage For="() => game.Name" />
+            </div>
+
+            <div class="mb-3">
+                <label for="Genre">Genre:</label>
+                <InputSelect id="Genre" class="form-control" @bind-Value="game.Genre">
+                    <option value="">Select genre</option>
+                    @foreach (var genre in Enum.GetValues(typeof(GameGenres)))
+                    {
+                        <option value="@genre">@genre</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => game.Genre" />
+            </div>
+
+            <div class="mb-3">
+                <label for="ReleaseDate">Release date:</label>
+                <InputDate id="ReleaseDate" class="form-control" @bind-Value="game.ReleaseDate" />
+                <ValidationMessage For="() => game.ReleaseDate" />
+            </div>
+
+            <div class="mb-3">
+                <label for="Developer">Developer:</label>
+                <InputSelect id="Developer" class="form-control" @bind-Value="game.DeveloperId">
+                    <option value="">Select developer</option>
+                    @foreach (var developer in developers)
+                    {
+                        <option value="@developer.Id">@developer.Name</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => game.DeveloperId" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-secondary" @onclick='() => NavigationManager.NavigateTo("/games")'>Cancel</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Game game = new Game();
+    private List<Developer> developers = new List<Developer>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        developers = await DeveloperService.GetDevelopers();
+    }
+
+    private void HandleSubmit(EditContext editContext)
+    {
+        var newGame = (Game)editContext.Model;
+        GameService.AddGame(newGame);
+        NavigationManager.NavigateTo("games");
+    }
+}

@@ -1,0 +1,190 @@
+﻿@page "/"
+@page "/games"
+@inject IGameService GameService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Games</PageTitle>
+
+<div class="row align-items-center mb-3">
+    <div class="col">
+        <h1>Games</h1>
+    </div>
+    <div class="col">
+        <InputText @bind-Value="searchTerm" @oninput="UpdateSearch" class="form-control" placeholder="Search..." />
+    </div>
+    <div class="col">
+        <AuthorizeView Roles="Admin, User">
+            <button type="submit" class="btn btn-primary float-end" @onclick='() => NavigationManager.NavigateTo("/games/add")'>New game</button>
+        </AuthorizeView>
+    </div>
+</div>
+
+@if (games is null)
+{
+    <p><em>Loading ...</em></p>
+}
+else
+{
+    <table class="table table-striped table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>
+                    <a href="" @onclick="SortByName" @onclick:preventDefault class="text-decoration-none text-white">@nameButton</a>
+                </th>
+                <th>
+                    <a href="" @onclick="SortByGenre" @onclick:preventDefault class="text-decoration-none text-white">@genreButton</a>
+                </th>
+                <th>
+                    <a href="" @onclick="SortByReleaseDate" @onclick:preventDefault class="text-decoration-none text-white">@releaseDateButton</a>
+                </th>
+                <th>
+                    <a href="" @onclick="SortByDeveloper" @onclick:preventDefault class="text-decoration-none text-white">@developerButton</a>
+                </th>
+                <AuthorizeView Roles="Admin, User">
+                    <th />
+                </AuthorizeView>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var game in FilteredGames)
+            {
+                <tr>
+                    <td>@game.Name</td>
+                    <td>@game.Genre</td>
+                    <td>@game.ReleaseDate.ToShortDateString()</td>
+                    <td>@game.Developer.Name</td>
+                    <AuthorizeView Roles="Admin">
+                        <td class="text-center" style="width: 110px;">
+                            <button class="btn btn-primary" @onclick='() => NavigationManager.NavigateTo($"/games/edit/{game.Id}")'>
+                                <i class="oi oi-pencil" />
+                            </button>
+                            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modal" @onclick='() => OpenModal(game)'>
+                                <i class="oi oi-x" />
+                            </button>
+                        </td>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="User">
+                        <td class="text-center" style="width: 55px;">
+                            <button class="btn btn-primary" @onclick='() => NavigationManager.NavigateTo($"/games/edit/{game.Id}")'>
+                                <i class="oi oi-pencil" />
+                            </button>
+                        </td>
+                    </AuthorizeView>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <Modal Message="@message" OnClose="@OnModalClose" />
+}
+
+@code {
+    // Init
+    private List<Game>? games;
+
+    protected override async Task OnInitializedAsync()
+    {
+        games = await GameService.GetGames();
+    }
+
+    // Modal
+    private Game? currentGame;
+    private string? message;
+
+    private void OpenModal(Game game)
+    {
+        currentGame = game;
+        message = $"Delete {game.Name}?";
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed)
+        {
+            await GameService.DeleteGame(currentGame.Id);
+            games = await GameService.GetGames();
+        }
+    }
+
+    // Filter
+    private string searchTerm = "";
+
+    private void UpdateSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value.ToString();
+    }
+
+    private List<Game>? FilteredGames
+    {
+        get
+        {
+            var filtered = games;
+
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                filtered = filtered
+                    .Where(g => g.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                g.Genre.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                g.ReleaseDate.ToShortDateString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                g.Developer.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            return filtered;
+        }
+    }
+
+    // Sort
+    private string nameButton = "Name ⮁";
+    private string genreButton = "Genre ⮁";
+    private string releaseDateButton = "Release date ⮁";
+    private string developerButton = "Developer ⮁";
+    private bool sortByNameAscending = false;
+    private bool sortByGenreAscending = false;
+    private bool sortByReleaseDateAscending = false;
+    private bool sortByDeveloperAscending = false;
+
+    void ActiveButton(string button)
+    {
+        nameButton = button != "Name" ? "Name ⮁" : sortByNameAscending ? "Name ⭣" : "Name ⭡";
+        genreButton = button != "Genre" ? "Genre ⮁" : sortByGenreAscending ? "Genre ⭣" : "Genre ⭡";
+        releaseDateButton = button != "Release date" ? "Release date ⮁" : sortByReleaseDateAscending ? "Release date ⭣" : "Release date ⭡";
+        developerButton = button != "Developer" ? "Developer ⮁" : sortByDeveloperAscending ? "Developer ⭣" : "Developer ⭡";
+    }
+
+    private void SortByName()
+    {
+        sortByNameAscending = !sortByNameAscending;
+        ActiveButton("Name");
+        games = sortByNameAscending
+                ? games.OrderBy(g => g.Name).ToList()
+                : games.OrderByDescending(g => g.Name).ToList();
+    }
+
+    private void SortByGenre()
+    {
+        sortByGenreAscending = !sortByGenreAscending;
+        ActiveButton("Genre");
+        games = sortByGenreAscending
+                ? games.OrderBy(g => g.Genre).ToList()
+                : games.OrderByDescending(g => g.Genre).ToList();
+    }
+
+    private void SortByReleaseDate()
+    {
+        sortByReleaseDateAscending = !sortByReleaseDateAscending;
+        ActiveButton("Release date");
+        games = sortByReleaseDateAscending
+                ? games.OrderBy(g => g.ReleaseDate).ToList()
+                : games.OrderByDescending(g => g.ReleaseDate).ToList();
+    }
+
+    private void SortByDeveloper()
+    {
+        sortByDeveloperAscending = !sortByDeveloperAscending;
+        ActiveButton("Developer");
+        games = sortByDeveloperAscending
+                ? games.OrderBy(g => g.Developer.Name).ToList()
+                : games.OrderByDescending(g => g.Developer.Name).ToList();
+    }
+}

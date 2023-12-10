@@ -1,0 +1,46 @@
+﻿@page "/developers/add"
+@attribute [Authorize(Roles = "Admin, User")]
+@inject IDeveloperService DeveloperService
+@inject NavigationManager NavigationManager
+
+<h1>Add developer</h1>
+
+<div class="row">
+    <div class="col-sm-4">
+        <EditForm Model="@developer" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label for="Name">Name:</label>
+                <InputText id="Name" class="form-control" @bind-Value="developer.Name" />
+                <ValidationMessage For="() => developer.Name" />
+            </div>
+
+            <div class="mb-3">
+                <label for="City">City:</label>
+                <InputText id="City" class="form-control" @bind-Value="developer.City" />
+                <ValidationMessage For="() => developer.City" />
+            </div>
+
+            <div class="mb-3">
+                <label for="Country">Country:</label>
+                <InputText id="Country" class="form-control" @bind-Value="developer.Country" />
+                <ValidationMessage For="() => developer.Country" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-secondary" @onclick='() => NavigationManager.NavigateTo("/developers")'>Cancel</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Developer developer = new Developer();
+
+    private void HandleSubmit(EditContext editContext)
+    {
+        var newDeveloper = (Developer)editContext.Model;
+        DeveloperService.AddDeveloper(newDeveloper);
+        NavigationManager.NavigateTo("developers");
+    }
+}
